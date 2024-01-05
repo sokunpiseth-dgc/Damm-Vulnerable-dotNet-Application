@@ -1,28 +1,14 @@
-name: Security Code Scan
-
-on: [push]
-
+name: Security Scan Workflow
+on: [push, pull_request]
 jobs:
-  security_scan:
+  security-scan:
     runs-on: ubuntu-latest
-    
     steps:
-    - name: Checkout repository
-      uses: actions/checkout@v2
-      
-    - name: Setup .NET Core
-      uses: actions/setup-dotnet@v1
-      with:
-        dotnet-version: '7.0.x' # Replace with your desired .NET version
-      
-    - name: Install Security Code Scan
-      run: dotnet tool install --global SecurityCodeScan # Replace <version_number> with the desired version of Security Code Scan
-    
-    - name: Run Security Code Scan
-      run: dotnet scan --output "security_scan_report.json" # Modify output path and filename as needed
-    
-    - name: Upload Security Code Scan report
-      uses: actions/upload-artifact@v2
-      with:
-        name: security-scan-report
-        path: security_scan_report.json # Modify the path to your report
+      - name: Checkout Code
+        uses: actions/checkout@v2
+      - name: Install Security Code Scan
+        run: dotnet tool install --global security-scan
+      - name: List Global Tools
+        run: dotnet tool list --global
+      - name: Run Security Code Scan
+        run: security-scan WebGoat.NET.sln --export=sast-report.sarif
