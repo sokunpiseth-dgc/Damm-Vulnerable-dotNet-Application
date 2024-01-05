@@ -1,35 +1,67 @@
 name: SAST Workflow
 on: [push, pull_request]
 jobs:
-  semgrep:
+  find-files:
     runs-on: ubuntu-latest
-    if: contains(github.event.head_commit.message, '[semgrep]')
     steps:
       - name: Checkout Code
         uses: actions/checkout@v2
-      - name: Install Semgrep
-        run: pip install semgrep
-      - name: Run Semgrep
-        run: semgrep --config=p/security-audit --exclude=tests .
-  security-code-scan:
-    runs-on: windows-latest
-    if: contains(github.event.head_commit.message, '[security-code-scan]')
-    steps:
-      - name: Checkout Code
-        uses: actions/checkout@v2
-      - name: Install Security Code Scan
-        run: dotnet tool install --global security-scan
-      - name: Run Security Code Scan
-        run: security-scan .
-  spotbugs:
+      - name: Find files with extensions
+        id: find-files
+        uses: dorny/paths-filter@v2
+        with:
+          list-files: json
+          filters: |
+            nodejs:
+              - '**/package.json'
+            dotnet:
+              - '**/*.csproj'
+              - '**/*.vbproj'
+            semgrep:
+              - '**/*.py'
+              - '**/*.js'
+              - '**/*.jsx'
+              - '**/*.ts'
+              - '**/*.tsx'
+              - '**/*.c'
+              - '**/*.go'
+              - '**/*.java'
+              - '**/*.cs'
+              - '**/*.html'
+              - '**/*.scala'
+              - '**/*.sc'
+            jvm:
+              - '**/*.groovy'
+              - '**/*.scala'
+              - '**/*.kt'
+    outputs:
+      nodejs_files: ${{ steps.find-files.outputs.nodejs_files }}
+      dotnet_files: ${{ steps.find-files.outputs.dotnet_files }}
+      semgrep_files: ${{ steps.find-files.outputs.semgrep_files }}
+      jvm_files: ${{ steps.find-files.outputs.jvm_files }}
+
+  sast:
+    needs: [find-files]
     runs-on: ubuntu-latest
-    if: contains(github.event.head_commit.message, '[spotbugs]')
+    strategy:
+      matrix:
+        tool: [brakeman, flawfinder, nodejs-scan, phpcs-security-audit, pmd-apex, security-code-scan, semgrep, sobelow, spotbugs]
     steps:
       - name: Checkout Code
         uses: actions/checkout@v2
-      - name: Install SpotBugs
+      - name: Run SAST tool
         run: |
-          wget https://github.com/spotbugs/spotbugs/releases/download/4.3.0/spotbugs-4.3.0.tgz
-          tar xvf spotbugs-4.3.0.tgz
-      - name: Run SpotBugs
-        run: ./spotbugs-4.3.0/bin/spotbugs -textui -include spotbugs-4.3.0/lib/security.xml .
+          if [ "${{ matrix.tool }}" = "nodejs-scan" ] && [ -n "${{ needs.find-files.outputs.nodejs_files }}" ]; then
+            npm install -g nodejsscan
+            nodejsscan .
+          elif [ "${{ matrix.tool }}" = "security-code-scan" ] && [ -n "${{ needs.find-files.outputs.dotnet_files }}" ]; then
+            dotnet tool install --global security-scan
+            security-scan .
+          elif [ "${{ matrix.tool }}" = "semgrep" ] && [ -n "${{ needs.find-files.outputs.semgrep_files }}" ]; then
+            pip install semgrep
+            semgrep --config=p/security-audit .
+          elif [ "${{ matrix.tool }}" = "spotbugs" ] && [ -n "${{ needs.find-files.outputs.jvm_files }}" ]; then
+            wget https://github.com/spotbugs/spotbugs/releases/download/4.3.0/spotbugs-4.3.0.tgz
+            tar xvf spotbugs-4.3.0.tgz
+            ./spotbugs-4.3.0/bin/spotbugs -textui -include spotbugs-4.3.0/lib/security.xml .
+          fi
