@@ -35,10 +35,10 @@ jobs:
               - '**/*.scala'
               - '**/*.kt'
     outputs:
-      nodejs_files: ${{ steps.find-files.outputs.nodejs_files }}
-      dotnet_files: ${{ steps.find-files.outputs.dotnet_files }}
-      semgrep_files: ${{ steps.find-files.outputs.semgrep_files }}
-      jvm_files: ${{ steps.find-files.outputs.jvm_files }}
+      nodejs_files: ${{ steps.find-files.outputs.nodejs }}
+      dotnet_files: ${{ steps.find-files.outputs.dotnet }}
+      semgrep_files: ${{ steps.find-files.outputs.semgrep }}
+      jvm_files: ${{ steps.find-files.outputs.jvm }}
 
   sast:
     needs: [find-files]
