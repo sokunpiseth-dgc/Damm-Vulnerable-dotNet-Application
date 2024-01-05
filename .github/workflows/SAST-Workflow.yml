@@ -1,67 +1,23 @@
-name: SAST Workflow
-on: [push, pull_request]
+name: SAST
+on:
+  push:
+    branches: [ main ]
 jobs:
-  find-files:
+  SCS:
     runs-on: ubuntu-latest
-    steps:
-      - name: Checkout Code
-        uses: actions/checkout@v2
-      - name: Find files with extensions
-        id: find-files
-        uses: dorny/paths-filter@v2
-        with:
-          list-files: json
-          filters: |
-            nodejs:
-              - '**/package.json'
-            dotnet:
-              - '**/*.csproj'
-              - '**/*.vbproj'
-            semgrep:
-              - '**/*.py'
-              - '**/*.js'
-              - '**/*.jsx'
-              - '**/*.ts'
-              - '**/*.tsx'
-              - '**/*.c'
-              - '**/*.go'
-              - '**/*.java'
-              - '**/*.cs'
-              - '**/*.html'
-              - '**/*.scala'
-              - '**/*.sc'
-            jvm:
-              - '**/*.groovy'
-              - '**/*.scala'
-              - '**/*.kt'
-    outputs:
-      nodejs_files: ${{ steps.find-files.outputs.nodejs }}
-      dotnet_files: ${{ steps.find-files.outputs.dotnet }}
-      semgrep_files: ${{ steps.find-files.outputs.semgrep }}
-      jvm_files: ${{ steps.find-files.outputs.jvm }}
+    steps:     
+      - uses: actions/checkout@v2
+      
+      - name: Set up projects
+        uses: security-code-scan/security-code-scan-add-action@v1.2
 
-  sast:
-    needs: [find-files]
-    runs-on: ubuntu-latest
-    strategy:
-      matrix:
-        tool: [nodejs-scan, security-code-scan, semgrep, spotbugs]
-    steps:
-      - name: Checkout Code
-        uses: actions/checkout@v2
-      - name: Run SAST tool
+      - name: Build
         run: |
-          if [ "${{ matrix.tool }}" = "nodejs-scan" ] && [ -n "${{ needs.find-files.outputs.nodejs_files }}" ]; then
-            npm install -g nodejsscan
-            nodejsscan .
-          elif [ "${{ matrix.tool }}" = "security-code-scan" ] && [ -n "${{ needs.find-files.outputs.dotnet_files }}" ]; then
-            dotnet tool install --global security-scan
-            security-scan .
-          elif [ "${{ matrix.tool }}" = "semgrep" ] && [ -n "${{ needs.find-files.outputs.semgrep_files }}" ]; then
-            pip install semgrep
-            semgrep --config=p/security-audit .
-          elif [ "${{ matrix.tool }}" = "spotbugs" ] && [ -n "${{ needs.find-files.outputs.jvm_files }}" ]; then
-            wget https://github.com/spotbugs/spotbugs/releases/download/4.3.0/spotbugs-4.3.0.tgz
-            tar xvf spotbugs-4.3.0.tgz
-            ./spotbugs-4.3.0/bin/spotbugs -textui -include spotbugs-4.3.0/lib/security.xml .
-          fi
+          dotnet restore
+          dotnet build
+        
+      - name: Convert sarif for uploading to GitHub
+        uses: security-code-scan/security-code-scan-results-action@v1
+        
+      - name: Upload sarif	
+        uses: github/codeql-action/upload-sarif@v1
