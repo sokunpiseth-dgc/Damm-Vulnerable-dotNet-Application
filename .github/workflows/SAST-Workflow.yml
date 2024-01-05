@@ -1,0 +1,35 @@
+name: SAST Workflow
+on: [push, pull_request]
+jobs:
+  semgrep:
+    runs-on: ubuntu-latest
+    if: contains(github.event.head_commit.message, '[semgrep]')
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v2
+      - name: Install Semgrep
+        run: pip install semgrep
+      - name: Run Semgrep
+        run: semgrep --config=p/security-audit --exclude=tests .
+  security-code-scan:
+    runs-on: windows-latest
+    if: contains(github.event.head_commit.message, '[security-code-scan]')
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v2
+      - name: Install Security Code Scan
+        run: dotnet tool install --global security-scan
+      - name: Run Security Code Scan
+        run: security-scan .
+  spotbugs:
+    runs-on: ubuntu-latest
+    if: contains(github.event.head_commit.message, '[spotbugs]')
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v2
+      - name: Install SpotBugs
+        run: |
+          wget https://github.com/spotbugs/spotbugs/releases/download/4.3.0/spotbugs-4.3.0.tgz
+          tar xvf spotbugs-4.3.0.tgz
+      - name: Run SpotBugs
+        run: ./spotbugs-4.3.0/bin/spotbugs -textui -include spotbugs-4.3.0/lib/security.xml .
