@@ -45,7 +45,7 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        tool: [brakeman, flawfinder, nodejs-scan, phpcs-security-audit, pmd-apex, security-code-scan, semgrep, sobelow, spotbugs]
+        tool: [nodejs-scan, security-code-scan, semgrep, spotbugs]
     steps:
       - name: Checkout Code
         uses: actions/checkout@v2
